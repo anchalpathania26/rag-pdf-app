@@ -1,10 +1,10 @@
+streamlit
 langchain
 langchain-core
 langchain-community
-pypdf
-pymupdf
+langchain-groq
 sentence-transformers
 faiss-cpu
-chromadb
 python-dotenv
-langchain-groq
+pypdf
+pymupdf
