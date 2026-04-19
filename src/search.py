@@ -5,6 +5,7 @@ from src.vectorstore import FaissVectorStore
 
 load_dotenv()
 
+
 class RAGSearch:
     def __init__(self, persist_dir="faiss_store",
                  embedding_model="all-MiniLM-L6-v2"):
@@ -23,6 +24,9 @@ class RAGSearch:
 
         self.api_key = os.getenv("GROQ_API_KEY")
 
+        if not self.api_key:
+            raise ValueError("GROQ_API_KEY not found. Check your secrets.")
+
     def call_llm(self, prompt):
         url = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -38,20 +42,41 @@ class RAGSearch:
             ]
         }
 
-        response = requests.post(url, headers=headers, json=data)
-        return response.json()["choices"][0]["message"]["content"]
+        try:
+            response = requests.post(url, headers=headers, json=data)
+
+            print("STATUS CODE:", response.status_code)
+
+            result = response.json()
+
+            print("API RESPONSE:", result)
+
+            if response.status_code != 200:
+                return f"HTTP Error {response.status_code}: {result}"
+
+            if "choices" not in result:
+                return f"API Error: {result}"
+
+            return result["choices"][0]["message"]["content"]
+
+        except Exception as e:
+            return f"Exception occurred: {str(e)}"
 
     def search_and_summarize(self, query, top_k=5):
         results = self.vectorstore.query(query, top_k=top_k)
 
-        texts = [r["metadata"].get("text", "") for r in results if r["metadata"]]
+        texts = [
+            r["metadata"].get("text", "")
+            for r in results if r["metadata"]
+        ]
+
         context = "\n\n".join(texts)
 
         if not context:
             return "No relevant documents found."
 
         prompt = f"""
-Answer ONLY using the context.
+Answer ONLY using the context below.
 
 Question: {query}
 
