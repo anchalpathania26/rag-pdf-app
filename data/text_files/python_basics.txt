@@ -1,0 +1,16 @@
+python programming introduction
+
+Python is a high level programming language that is easy to read and write. It was created by Guido van Rossum and is widely used by beginners as well as professionals. Python focuses on simplicity, which makes it one of the best languages to start learning programming.
+
+Python is popular because its syntax is clean and similar to everyday English. It allows developers to write fewer lines of code compared to many other languages. It also has a large community and a vast number of libraries that help in different areas like web development, data analysis, automation, and artificial intelligence.
+
+In Python, you can store data using variables. There are different types of data such as text, numbers, and true or false values. You can control the flow of your program using conditions, which help you make decisions, and loops, which allow you to repeat tasks multiple times.
+
+Functions are an important concept in Python. They allow you to write reusable blocks of code so you do not have to repeat the same logic again and again. This makes programs more organized and easier to maintain.
+
+Python also supports libraries, which are pre written code modules that help you perform complex tasks easily. For example, some libraries help with data handling, some with creating graphs, and others with building AI applications.
+
+Python is used in many fields such as web development, data science, machine learning, automation, and software development. Because of its simplicity and power, it is one of the most in demand programming languages today.
+
+In simple terms, Python is a versatile and beginner friendly language that helps you build everything from small scripts to advanced intelligent systems.
+
