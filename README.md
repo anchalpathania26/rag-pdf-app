@@ -8,7 +8,7 @@
 
 ## 📸 Demo
 
-![App Screenshot](<img width="1154" height="649" alt="image" src="https://github.com/user-attachments/assets/fecd787e-1354-49a3-a4a2-9dd055af042f" />
+![App Screenshot](assests/app%20screenshot.png)
 )
 
 > Upload a PDF → Ask questions → Get intelligent answers instantly
