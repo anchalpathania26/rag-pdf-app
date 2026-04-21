@@ -22,10 +22,14 @@ class RAGSearch:
         else:
             self.vectorstore.load()
 
+        #  API KEY
         self.api_key = os.getenv("GROQ_API_KEY")
 
         if not self.api_key:
             raise ValueError("GROQ_API_KEY not found. Check your secrets.")
+
+        #  MODEL (now flexible — no more breaking)
+        self.model_name = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
     def call_llm(self, prompt):
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -36,7 +40,7 @@ class RAGSearch:
         }
 
         data = {
-            "model": "llama3-8b-8192",
+            "model": self.model_name,  # ✅ dynamic model
             "messages": [
                 {"role": "user", "content": prompt}
             ]
