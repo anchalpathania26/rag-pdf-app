@@ -2,7 +2,7 @@
 
 🚀 An end-to-end AI-powered application that allows users to upload PDF documents and interact with them using natural language queries.
 
-🔗 **Live App:** https://rag-pdf-app-9rkxbkvbjvbe9gdrxkmfwl.streamlit.app
+🔗 **Live App:** https://rag-pdf-app-9rkxbkvbjybe9gdrxkmfwl.streamlit.app/
 
 ---
 
