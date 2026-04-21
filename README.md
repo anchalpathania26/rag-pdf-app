@@ -9,7 +9,7 @@
 ## 📸 Demo
 
 ![App Screenshot](assests/app%20screenshot.png)
-)
+
 
 > Upload a PDF → Ask questions → Get intelligent answers instantly
 
