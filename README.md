@@ -121,6 +121,3 @@ This project is built using a **Retrieval-Augmented Generation (RAG)** approach:
 
 ---
 
-## 👨‍💻 Author
-
-**Anchal Pathania**
