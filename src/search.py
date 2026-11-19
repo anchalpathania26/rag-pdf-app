@@ -1,91 +1,253 @@
+
 import os
 import requests
 from dotenv import load_dotenv
 from src.vectorstore import FaissVectorStore
 
+# Load environment variables
 load_dotenv()
 
 
 class RAGSearch:
-    def __init__(self, persist_dir="faiss_store",
-                 embedding_model="all-MiniLM-L6-v2"):
 
-        self.vectorstore = FaissVectorStore(persist_dir, embedding_model)
+    def __init__(
+        self,
+        persist_dir="faiss_store",
+        embedding_model="all-MiniLM-L6-v2"
+    ):
 
-        faiss_path = os.path.join(persist_dir, "faiss.index")
-        meta_path = os.path.join(persist_dir, "metadata.pkl")
+        # Initialize FAISS vector store
+        self.vectorstore = FaissVectorStore(
+            persist_dir,
+            embedding_model
+        )
 
-        if not (os.path.exists(faiss_path) and os.path.exists(meta_path)):
-            from src.data_loader import load_all_documents
-            docs = load_all_documents("data")
-            self.vectorstore.build_from_documents(docs)
-        else:
+        faiss_path = os.path.join(
+            persist_dir, "faiss.index"
+        )
+
+        meta_path = os.path.join(
+            persist_dir, "metadata.pkl"
+        )
+
+        # Load existing vector database or build a new one
+        if os.path.exists(faiss_path) and os.path.exists(meta_path):
+
+            print("Loading existing FAISS vector store...")
             self.vectorstore.load()
 
-        #  API KEY
+        else:
+
+            print("Building new FAISS vector store...")
+
+            from src.data_loader import load_all_documents
+
+            docs = load_all_documents("data")
+
+            if not docs:
+                raise ValueError(
+                    "No documents found to build the vector store."
+                )
+
+            self.vectorstore.build_from_documents(docs)
+
+        print("FAISS vector store initialized successfully.")
+
+        # Load Groq API key
         self.api_key = os.getenv("GROQ_API_KEY")
 
         if not self.api_key:
-            raise ValueError("GROQ_API_KEY not found. Check your secrets.")
+            raise ValueError(
+                "GROQ_API_KEY not found. "
+                "Check your .env file or Streamlit secrets."
+            )
 
-        #  MODEL (now flexible — no more breaking)
-        self.model_name = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
+        # Configure Groq model
+        self.model_name = os.getenv(
+            "MODEL_NAME",
+            "openai/gpt-oss-20b"
+        )
+
+        self.api_url = (
+            "https://api.groq.com/openai/v1/chat/completions"
+        )
+
+        print(f"Groq model configured: {self.model_name}")
+
+    # ----------------------------------
+    # CALL GROQ LLM
+    # ----------------------------------
 
     def call_llm(self, prompt):
-        url = "https://api.groq.com/openai/v1/chat/completions"
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
 
-        data = {
-            "model": self.model_name,  # ✅ dynamic model
+        payload = {
+            "model": self.model_name,
             "messages": [
-                {"role": "user", "content": prompt}
-            ]
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful PDF document assistant. "
+                        "Answer accurately using the provided context. "
+                        "Do not invent facts or information."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "max_completion_tokens": 2048
         }
 
         try:
-            response = requests.post(url, headers=headers, json=data)
 
-            print("STATUS CODE:", response.status_code)
+            response = requests.post(
+                self.api_url,
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+
+            # Handle API errors
+            if response.status_code != 200:
+
+                try:
+                    error_data = response.json()
+                except ValueError:
+                    error_data = response.text
+
+                print("Groq API Error:", error_data)
+
+                return (
+                    f"Groq API Error ({response.status_code}): "
+                    f"{error_data}"
+                )
 
             result = response.json()
 
-            print("API RESPONSE:", result)
+            # Extract generated answer
+            choices = result.get("choices", [])
 
-            if response.status_code != 200:
-                return f"HTTP Error {response.status_code}: {result}"
+            if not choices:
+                return "Error: Groq returned an empty response."
 
-            if "choices" not in result:
-                return f"API Error: {result}"
+            answer = (
+                choices[0]
+                .get("message", {})
+                .get("content")
+            )
 
-            return result["choices"][0]["message"]["content"]
+            if not answer:
+                return "Error: No answer was generated by the model."
+
+            return answer.strip()
+
+        except requests.exceptions.Timeout:
+
+            return (
+                "Request timed out. Please try again."
+            )
+
+        except requests.exceptions.ConnectionError:
+
+            return (
+                "Could not connect to Groq API. "
+                "Check your internet connection."
+            )
+
+        except requests.exceptions.RequestException as e:
+
+            return f"API request failed: {str(e)}"
+
+        except (ValueError, KeyError, IndexError) as e:
+
+            return f"Error processing Groq response: {str(e)}"
 
         except Exception as e:
-            return f"Exception occurred: {str(e)}"
+
+            print("Unexpected error:", str(e))
+
+            return f"Unexpected error: {str(e)}"
+
+    # ----------------------------------
+    # RETRIEVE RELEVANT DOCUMENTS
+    # ----------------------------------
 
     def search_and_summarize(self, query, top_k=5):
-        results = self.vectorstore.query(query, top_k=top_k)
 
-        texts = [
-            r["metadata"].get("text", "")
-            for r in results if r["metadata"]
-        ]
+        if not query or not query.strip():
+            return "Please enter a question."
 
-        context = "\n\n".join(texts)
+        try:
 
-        if not context:
-            return "No relevant documents found."
+            # Search FAISS for relevant document chunks
+            results = self.vectorstore.query(
+                query,
+                top_k=top_k
+            )
 
-        prompt = f"""
-Answer ONLY using the context below.
+            if not results:
+                return "No relevant documents found."
 
-Question: {query}
+            # Extract text from retrieved chunks
+            texts = []
 
-Context:
+            for result in results:
+
+                metadata = result.get("metadata") or {}
+
+                text = metadata.get("text", "")
+
+                if text and text.strip():
+                    texts.append(text.strip())
+
+            if not texts:
+                return (
+                    "Relevant documents were retrieved, "
+                    "but no readable text was found."
+                )
+
+            # Combine retrieved context
+            context = "\n\n".join(texts)
+
+            # Construct RAG prompt
+            prompt = f"""
+You are answering a question using information
+retrieved from an uploaded PDF document.
+
+IMPORTANT INSTRUCTIONS:
+
+1. Answer using ONLY the provided context.
+2. Do not invent information.
+3. If the answer is not available in the context,
+   clearly say that the document does not contain
+   enough information to answer.
+4. Give a clear and well-structured answer.
+5. Use bullet points when appropriate.
+6. Explain technical terms in simple language
+   when necessary.
+
+QUESTION:
+{query}
+
+RETRIEVED DOCUMENT CONTEXT:
 {context}
+
+ANSWER:
 """
 
-        return self.call_llm(prompt)
+            # Generate final answer using Groq
+            answer = self.call_llm(prompt)
+
+            return answer
+
+        except Exception as e:
+
+            print("RAG Search Error:", str(e))
+
+            return f"Error during document search: {str(e)}"
